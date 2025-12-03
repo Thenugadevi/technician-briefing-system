@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Technician Briefing & Training Record System</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      margin: 0;
+      padding: 20px;
+    }
+
+    h1, h2 {
+      text-align: center;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .logo-box {
+      text-align: center;
+      margin-bottom: 15px;
+    }
+
+    .logo-box img {
+      max-width: 180px;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    label {
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+
+    input[type="text"],
+    input[type="date"],
+    textarea {
+      padding: 8px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+      font-size: 14px;
+    }
+
+    textarea {
+      min-height: 80px;
+      resize: vertical;
+    }
+
+    .signature-section {
+      margin-top: 10px;
+    }
+
+    #signature-pad {
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      background: #fafafa;
+      touch-action: none;
+    }
+
+    .btn-row {
+      margin-top: 10px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      padding: 8px 14px;
+      border-radius: 4px;
+      border: none;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .btn-primary { background: #007bff; color: #fff; }
+    .btn-secondary { background: #6c757d; color: #fff; }
+    .btn-danger { background: #dc3545; color: #fff; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      vertical-align: top;
+      text-align: left;
+    }
+
+    th { background: #f0f0f0; }
+
+    .signature-thumb {
+      max-width: 150px;
+      max-height: 60px;
+      border: 1px solid #ccc;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+
+    <!-- BOSCH LOGO -->
+    <div class="logo-box">
+      <img src="bosch_logo.png" alt="BOSCH Logo">
+    </div>
+	
+	<div class="doc-number">Document No.:TL_033</div>
+
+    <h1>Technician / Operator Briefing & Training Record</h1>
+
+    <h2>New Briefing Entry</h2>
+
+    <form id="briefing-form">
+      <div class="form-grid">
+
+        <div class="form-group">
+          <label for="techName">Technician / Operator Name *</label>
+          <input type="text" id="techName" required>
+        </div>
+
+        <div class="form-group">
+          <label for="techId">Technician ID / Employee No.</label>
+          <input type="text" id="techId">
+        </div>
+
+        <div class="form-group">
+          <label for="department">Department / Section</label>
+          <input type="text" id="department">
+        </div>
+
+        <div class="form-group">
+          <label for="briefingDate">Briefing Date *</label>
+          <input type="date" id="briefingDate" required>
+        </div>
+
+        <div class="form-group">
+          <label for="trainer">Briefed By (Supervisor / Trainer)</label>
+          <input type="text" id="trainer">
+        </div>
+		
+		<div class="form-group">
+       <label for="trainerDept">Trainer Department / Section</label>
+        <input type="text" id="trainerDept">
+        </div>
+
+      </div>
+
+      <!-- NEW PROCESS WORKSTATION FIELD -->
+      <div class="form-group">
+        <label>Process Workstation</label>
+        <div>
+          <label><input type="radio" name="ws" value="ASIC"> ASIC</label><br>
+          <label><input type="radio" name="ws" value="SMA"> SMA</label><br>
+          <label><input type="radio" name="ws" value="SMI"> SMI</label><br>
+          <label><input type="radio" name="ws" value="Others"> Others (Please mention):</label>
+          <input type="text" id="wsOthers" placeholder="Specify if 'Others' selected">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="topic">Briefing Topic / Title *</label>
+        <input type="text" id="topic" required>
+      </div>
+
+      <div class="form-group">
+        <label for="details">Briefing Details / Key Points *</label>
+        <textarea id="details" required></textarea>
+      </div>
+
+      <div class="signature-section">
+        <label>Technician Signature *</label>
+        <p style="font-size:12px;margin:0;">Sign in the box below:</p>
+        <canvas id="signature-pad" width="400" height="150"></canvas>
+
+        <div class="btn-row">
+          <button type="button" class="btn-secondary" id="clear-signature">Clear Signature</button>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button type="submit" class="btn-primary">Save Record</button>
+        <button type="button" class="btn-secondary" id="export-json">Export All (JSON Backup)</button>
+      </div>
+
+    </form>
+
+    <h2>Briefing Records History</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Technician</th>
+          <th>Briefing Info</th>
+          <th>Signature</th>
+          <th>Recorded At</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="records-body"></tbody>
+    </table>
+
+  </div>
+
+<script>
+/* (Same JavaScript as before — fully compatible with new fields) */
+
+// STORAGE KEY
+const STORAGE_KEY = 'briefingRecords_v1';
+let records = [];
+let isDrawing = false;
+let hasSignature = false;
+
+const canvas = document.getElementById('signature-pad');
+const ctx = canvas.getContext('2d');
+
+function init() {
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = '#000000';
+
+  loadRecords();
+  renderRecords();
+  setupSignaturePad();
+  setupForm();
+  setupExport();
+}
+
+function loadRecords() {
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if (saved) records = JSON.parse(saved);
+}
+
+function saveRecords() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+}
+
+// FORM HANDLING
+function setupForm() {
+  const form = document.getElementById('briefing-form');
+  const clearSigBtn = document.getElementById('clear-signature');
+
+  clearSignatureCanvas();
+
+  clearSigBtn.addEventListener('click', clearSignatureCanvas);
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+
+    const techName = document.getElementById('techName').value.trim();
+    const techId = document.getElementById('techId').value.trim();
+    const department = document.getElementById('department').value.trim();
+    const briefingDate = document.getElementById('briefingDate').value;
+    const trainer = document.getElementById('trainer').value.trim();
+	const trainerDept = document.getElementById('trainerDept').value.trim();
+    const topic = document.getElementById('topic').value.trim();
+    const details = document.getElementById('details').value.trim();
+
+    const ws = document.querySelector('input[name="ws"]:checked')?.value || "";
+    const wsOthers = document.getElementById('wsOthers').value.trim();
+
+    if (!techName || !briefingDate || !topic || !details) {
+      alert("Please fill all required (*) fields.");
+      return;
+    }
+
+    if (!hasSignature) {
+      alert("Please capture the technician signature.");
+      return;
+    }
+
+    const signatureDataUrl = canvas.toDataURL("image/png");
+    const createdAt = new Date().toISOString();
+
+    records.push({
+      id: Date.now(),
+      techName, techId, department,
+      briefingDate, trainer,trainerDept,
+      workstation: ws,
+      workstationOthers: wsOthers,
+      topic, details,
+      signatureDataUrl, createdAt
+    });
+
+    saveRecords();
+    renderRecords();
+    form.reset();
+    clearSignatureCanvas();
+    alert("Record saved.");
+  });
+}
+
+// SIGNATURE PAD
+function setupSignaturePad() {
+  canvas.addEventListener("mousedown", startDraw);
+  canvas.addEventListener("mousemove", draw);
+  window.addEventListener("mouseup", endDraw);
+
+  canvas.addEventListener("touchstart", startDrawTouch, { passive: false });
+  canvas.addEventListener("touchmove", drawTouch, { passive: false });
+  window.addEventListener("touchend", endDrawTouch);
+}
+
+function startDraw(e) {
+  isDrawing = true;
+  hasSignature = true;
+  const pos = getPos(e);
+  ctx.beginPath();
+  ctx.moveTo(pos.x, pos.y);
+}
+
+function draw(e) {
+  if (!isDrawing) return;
+  const pos = getPos(e);
+  ctx.lineTo(pos.x, pos.y);
+  ctx.stroke();
+}
+
+function endDraw() { isDrawing = false; }
+
+function startDrawTouch(e) {
+  e.preventDefault();
+  isDrawing = true;
+  hasSignature = true;
+  const touch = e.touches[0];
+  const rect = canvas.getBoundingClientRect();
+  ctx.beginPath();
+  ctx.moveTo(touch.clientX - rect.left, touch.clientY - rect.top);
+}
+
+function drawTouch(e) {
+  e.preventDefault();
+  if (!isDrawing) return;
+  const touch = e.touches[0];
+  const rect = canvas.getBoundingClientRect();
+  ctx.lineTo(touch.clientX - rect.left, touch.clientY - rect.top);
+  ctx.stroke();
+}
+
+function endDrawTouch() { isDrawing = false; }
+
+function clearSignatureCanvas() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  hasSignature = false;
+}
+
+function getPos(e) {
+  const rect = canvas.getBoundingClientRect();
+  return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+}
+
+// RENDER RECORD TABLE
+function renderRecords() {
+  const tbody = document.getElementById("records-body");
+  tbody.innerHTML = "";
+
+  if (records.length === 0) {
+    const row = `<tr><td colspan="6">No briefing records found.</td></tr>`;
+    tbody.innerHTML = row;
+    return;
+  }
+
+  records.forEach((rec, index) => {
+    const row = `
+      <tr>
+        <td>${index + 1}</td>
+
+        <td>
+          <strong>${rec.techName}</strong><br>
+          ID: ${rec.techId || "-"}<br>
+          Dept: ${rec.department || "-"}
+        </td>
+
+        <td>
+          <strong>${rec.topic}</strong><br>
+          Date: ${rec.briefingDate}<br>
+          Trainer: ${rec.trainer || "-"}<br>
+		  Trainer Dept: ${rec.trainerDept || "-"}<br>
+          Workstation: ${rec.workstation || "-"}<br>
+          ${rec.workstation === "Others" ? "Specify: " + rec.workstationOthers : ""}
+          <details>
+            <summary>Details</summary>
+            <div>${rec.details.replace(/\n/g, "<br>")}</div>
+          </details>
+        </td>
+
+        <td>
+          ${rec.signatureDataUrl ? `<img src="${rec.signatureDataUrl}" class="signature-thumb">` : "No signature"}
+        </td>
+
+        <td>${new Date(rec.createdAt).toLocaleString()}</td>
+
+        <td>
+          <button class="btn-danger" onclick="deleteRecord(${index})">Delete</button>
+        </td>
+      </tr>
+    `;
+
+    tbody.insertAdjacentHTML("beforeend", row);
+  });
+}
+
+function deleteRecord(index) {
+  if (confirm("Delete this record?")) {
+    records.splice(index, 1);
+    saveRecords();
+    renderRecords();
+  }
+}
+
+// EXPORT TO JSON BACKUP
+function setupExport() {
+  document.getElementById("export-json").addEventListener("click", () => {
+    const json = JSON.stringify(records, null, 2);
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "briefing_records_backup.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+}
+
+document.addEventListener("DOMContentLoaded", init);
+
+</script>
+
+</body>
+</html>
