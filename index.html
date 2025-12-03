@@ -243,4 +243,76 @@ function renderRecords() {
           Trainer Dept: ${rec.trainerDept}<br>
           WS: ${rec.workstation}<br>
           ${rec.workstation === "Others" ? "Specify: " + rec.workstationOthers : ""}
-          <details><summary>Details</summary>${rec.details.replace(/\n/g,"<br>")}</detail
+          <details><summary>Details</summary>${rec.details.replace(/\n/g,"<br>")}</details>
+        </td>
+        <td><img src="${rec.signatureDataUrl}" class="signature-thumb"></td>
+        <td>${new Date(rec.createdAt).toLocaleString()}</td>
+      </tr>`;
+  });
+}
+
+// Signature pad
+canvas.addEventListener("mousedown", e => {
+  isDrawing = true; hasSignature = true;
+  ctx.beginPath();
+  ctx.moveTo(e.offsetX, e.offsetY);
+});
+
+canvas.addEventListener("mousemove", e => {
+  if (!isDrawing) return;
+  ctx.lineTo(e.offsetX, e.offsetY);
+  ctx.stroke();
+});
+
+window.addEventListener("mouseup", () => isDrawing = false);
+
+document.getElementById("clear-signature").onclick = () => {
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  hasSignature = false;
+};
+
+// Form submission
+document.getElementById("briefing-form").addEventListener("submit", e => {
+  e.preventDefault();
+
+  if (!hasSignature) return alert("Signature required");
+
+  const record = {
+    techName: techName.value.trim(),
+    techId: techId.value.trim(),
+    department: department.value.trim(),
+    briefingDate: briefingDate.value,
+    trainer: trainer.value.trim(),
+    trainerDept: trainerDept.value.trim(),
+    workstation: document.querySelector('input[name="ws"]:checked')?.value || "",
+    workstationOthers: wsOthers.value.trim(),
+    topic: topic.value.trim(),
+    details: details.value.trim(),
+    signatureDataUrl: canvas.toDataURL(),
+    createdAt: new Date().toISOString()
+  };
+
+  saveToDB(record).then(() => {
+    alert("Record saved.");
+    loadRecords();
+    e.target.reset();
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    hasSignature = false;
+  });
+});
+
+// Export JSON
+document.getElementById("export-json").onclick = () => {
+  const blob = new Blob([JSON.stringify(records,null,2)], { type:"application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "briefing_records.json";
+  a.click();
+};
+
+document.addEventListener("DOMContentLoaded", loadRecords);
+</script>
+
+</body>
+</html>
