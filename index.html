@@ -453,9 +453,343 @@ document.addEventListener("DOMContentLoaded", init);
 
 <!-- Your existing code -->
 <script>
-  // your JS logic here...
+  const firebaseConfig = {
+
+  apiKey: "AIzaSyAYVb01f9Iivzuau6yLnWVKV_MhenckeAo",
+
+  authDomain: "technician-briefing.firebaseapp.com",
+
+  projectId: "technician-briefing",
+
+  storageBucket: "technician-briefing.firebasestorage.app",
+
+  messagingSenderId: "931727495884",
+
+  appId: "1:931727495884:web:616bbbee9b94469bb22869",
+
+  measurementId: "G-7F31LCE8LC"
+
+};
+// Initialize Firebase
+firebase.initializeApp(firebaseConfig);
+
+// Get Firestore reference
+const db = firebase.firestore();
+
+// ===== Local Storage Key =====
+const STORAGE_KEY = 'briefingRecords_v1';
+
+let records = [];
+let isDrawing = false;
+let hasSignature = false;
+
+const canvas = document.getElementById('signature-pad');
+const ctx = canvas.getContext('2d');
+
+function init() {
+  // Basic line style
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = '#000000';
+
+  loadRecords();
+  renderRecords();
+  setupSignaturePad();
+  setupForm();
+  setupExport();
+}
+
+// ===== Load / Save Records (local browser history) =====
+function loadRecords() {
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if (saved) {
+    try {
+      records = JSON.parse(saved);
+    } catch (e) {
+      console.error('Error parsing saved records', e);
+      records = [];
+    }
+  }
+}
+
+function saveRecords() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+}
+
+// ===== Form Handling =====
+function setupForm() {
+  const form = document.getElementById('briefing-form');
+  const clearSigBtn = document.getElementById('clear-signature');
+
+  clearSignatureCanvas();
+
+  clearSigBtn.addEventListener('click', () => {
+    clearSignatureCanvas();
+  });
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+
+    // Read form values
+    const techName = document.getElementById('techName').value.trim();
+    const techId = document.getElementById('techId').value.trim();
+    const department = document.getElementById('department').value.trim();
+    const briefingDate = document.getElementById('briefingDate').value;
+    const trainer = document.getElementById('trainer').value.trim();
+    const trainerDept = document.getElementById('trainerDept')
+      ? document.getElementById('trainerDept').value.trim()
+      : "";
+    const topic = document.getElementById('topic').value.trim();
+    const details = document.getElementById('details').value.trim();
+
+    const ws = document.querySelector('input[name="ws"]:checked')?.value || "";
+    const wsOthers = document.getElementById('wsOthers').value.trim();
+
+    // Required fields
+    if (!techName || !briefingDate || !topic || !details) {
+      alert('Please fill in all required fields (*)');
+      return;
+    }
+
+    if (!hasSignature) {
+      alert('Please capture the technician signature.');
+      return;
+    }
+
+    const signatureDataUrl = canvas.toDataURL('image/png');
+    const createdAt = new Date().toISOString();
+
+    const record = {
+      id: Date.now(),
+      techName,
+      techId,
+      department,
+      briefingDate,
+      trainer,
+      trainerDept,
+      workstation: ws,
+      workstationOthers: wsOthers,
+      topic,
+      details,
+      signatureDataUrl, // base64 PNG
+      createdAt
+    };
+
+    // Save locally (for that browser)
+    records.push(record);
+    saveRecords();
+    renderRecords();
+
+    // 🔵 Save centrally in Firestore
+    db.collection('briefingRecords')
+      .add(record)
+      .then((docRef) => {
+        console.log('Saved to Firestore with ID:', docRef.id);
+      })
+      .catch((error) => {
+        console.error('Error saving to Firestore:', error);
+        // Optional: show a message if central save fails
+        // alert('Record saved locally, but failed to save to central database.');
+      });
+
+    form.reset();
+    clearSignatureCanvas();
+    alert('Record saved.');
+  });
+}
+
+// ===== Signature Pad =====
+function setupSignaturePad() {
+  // Mouse events
+  canvas.addEventListener('mousedown', startDraw);
+  canvas.addEventListener('mousemove', draw);
+  window.addEventListener('mouseup', endDraw);
+
+  // Touch events
+  canvas.addEventListener('touchstart', startDrawTouch, { passive: false });
+  canvas.addEventListener('touchmove', drawTouch, { passive: false });
+  window.addEventListener('touchend', endDrawTouch);
+}
+
+function getCanvasPos(e) {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: e.clientX - rect.left,
+    y: e.clientY - rect.top
+  };
+}
+
+function startDraw(e) {
+  isDrawing = true;
+  hasSignature = true;
+  const pos = getCanvasPos(e);
+  ctx.beginPath();
+  ctx.moveTo(pos.x, pos.y);
+}
+
+function draw(e) {
+  if (!isDrawing) return;
+  const pos = getCanvasPos(e);
+  ctx.lineTo(pos.x, pos.y);
+  ctx.stroke();
+}
+
+function endDraw() {
+  isDrawing = false;
+}
+
+function startDrawTouch(e) {
+  e.preventDefault();
+  if (e.touches.length > 0) {
+    isDrawing = true;
+    hasSignature = true;
+    const touch = e.touches[0];
+    const rect = canvas.getBoundingClientRect();
+    const x = touch.clientX - rect.left;
+    const y = touch.clientY - rect.top;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+  }
+}
+
+function drawTouch(e) {
+  e.preventDefault();
+  if (!isDrawing || e.touches.length === 0) return;
+  const touch = e.touches[0];
+  const rect = canvas.getBoundingClientRect();
+  const x = touch.clientX - rect.left;
+  const y = touch.clientY - rect.top;
+  ctx.lineTo(x, y);
+  ctx.stroke();
+}
+
+function endDrawTouch() {
+  isDrawing = false;
+}
+
+function clearSignatureCanvas() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  hasSignature = false;
+}
+
+// ===== Render Records Table (local history on that device) =====
+function renderRecords() {
+  const tbody = document.getElementById('records-body');
+  tbody.innerHTML = '';
+
+  if (!records || records.length === 0) {
+    const tr = document.createElement('tr');
+    const td = document.createElement('td');
+    td.colSpan = 6;
+    td.textContent = 'No briefing records found.';
+    tr.appendChild(td);
+    tbody.appendChild(tr);
+    return;
+  }
+
+  records.forEach((rec, index) => {
+    const tr = document.createElement('tr');
+
+    // #
+    const tdIndex = document.createElement('td');
+    tdIndex.textContent = index + 1;
+    tr.appendChild(tdIndex);
+
+    // Technician
+    const tdTech = document.createElement('td');
+    tdTech.innerHTML = `
+      <strong>${escapeHtml(rec.techName)}</strong><br>
+      ID: ${escapeHtml(rec.techId || '-')}<br>
+      Dept: ${escapeHtml(rec.department || '-')}
+    `;
+    tr.appendChild(tdTech);
+
+    // Briefing info
+    const tdInfo = document.createElement('td');
+    tdInfo.innerHTML = `
+      <strong>${escapeHtml(rec.topic)}</strong><br>
+      Date: ${escapeHtml(rec.briefingDate)}<br>
+      Trainer: ${escapeHtml(rec.trainer || '-')}<br>
+      Trainer Dept: ${escapeHtml(rec.trainerDept || '-')}<br>
+      Workstation: ${escapeHtml(rec.workstation || '-')}<br>
+      ${rec.workstation === 'Others' ? 'Specify: ' + escapeHtml(rec.workstationOthers || '') : ''}
+      <details>
+        <summary style="cursor:pointer;">Details</summary>
+        <div>${escapeHtml(rec.details).replace(/\n/g, '<br>')}</div>
+      </details>
+    `;
+    tr.appendChild(tdInfo);
+
+    // Signature
+    const tdSig = document.createElement('td');
+    if (rec.signatureDataUrl) {
+      const img = document.createElement('img');
+      img.src = rec.signatureDataUrl;
+      img.alt = 'Signature';
+      img.className = 'signature-thumb';
+      tdSig.appendChild(img);
+    } else {
+      tdSig.textContent = 'No signature';
+    }
+    tr.appendChild(tdSig);
+
+    // Recorded at
+    const tdCreated = document.createElement('td');
+    const createdDate = rec.createdAt
+      ? new Date(rec.createdAt).toLocaleString()
+      : '-';
+    tdCreated.textContent = createdDate;
+    tr.appendChild(tdCreated);
+
+    // Actions
+    const tdActions = document.createElement('td');
+    const delBtn = document.createElement('button');
+    delBtn.textContent = 'Delete';
+    delBtn.className = 'btn-danger';
+    delBtn.addEventListener('click', () => {
+      if (confirm('Delete this record?')) {
+        records.splice(index, 1);
+        saveRecords();
+        renderRecords();
+      }
+    });
+    tdActions.appendChild(delBtn);
+    tr.appendChild(tdActions);
+
+    tbody.appendChild(tr);
+  });
+}
+
+// ===== Export All Records (local backup JSON) =====
+function setupExport() {
+  const btn = document.getElementById('export-json');
+  btn.addEventListener('click', () => {
+    const dataStr = 'data:text/json;charset=utf-8,' +
+      encodeURIComponent(JSON.stringify(records, null, 2));
+    const dlAnchor = document.createElement('a');
+    dlAnchor.setAttribute('href', dataStr);
+    dlAnchor.setAttribute('download', 'briefing_records_backup.json');
+    dlAnchor.click();
+  });
+}
+
+// ===== Helper: escape HTML =====
+function escapeHtml(text) {
+  if (!text) return '';
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+// Init
+document.addEventListener('DOMContentLoaded', init);
+
 </script>
 	
 </body>
 </html>
+
 
